@@ -1,0 +1,76 @@
+@import "tailwindcss";
+
+@theme {
+  --color-on-background: #2c2f31;
+  --color-on-tertiary-fixed-variant: #006544;
+  --color-on-primary: #f2f1ff;
+  --color-surface-container: #e5e9eb;
+  --color-primary-fixed: #849aff;
+  --color-primary-fixed-dim: #718bff;
+  --color-surface-container-low: #eef1f3;
+  --color-background: #f5f7f9;
+  --color-surface-dim: #d0d5d8;
+  --color-tertiary-fixed-dim: #58e7ab;
+  --color-error-dim: #a70138;
+  --color-secondary-container: #dcc9ff;
+  --color-outline-variant: #abadaf;
+  --color-on-primary-fixed-variant: #00207d;
+  --color-on-surface-variant: #595c5e;
+  --color-on-tertiary-fixed: #00452d;
+  --color-surface-container-high: #dfe3e6;
+  --color-secondary: #702ae1;
+  --color-secondary-fixed-dim: #d0b8ff;
+  --color-on-primary-container: #001967;
+  --color-on-error: #ffefef;
+  --color-inverse-surface: #0b0f10;
+  --color-surface-variant: #d9dde0;
+  --color-primary: #254cd8;
+  --color-primary-container: #849aff;
+  --color-surface: #f5f7f9;
+  --color-outline: #747779;
+  --color-secondary-dim: #6411d5;
+  --color-error-container: #f74b6d;
+  --color-tertiary-fixed: #69f6b8;
+  --color-tertiary-container: #69f6b8;
+  --color-on-error-container: #510017;
+  --color-surface-container-highest: #d9dde0;
+  --color-inverse-primary: #6d88ff;
+  --color-tertiary: #006947;
+  --color-surface-bright: #f5f7f9;
+  --color-on-tertiary-container: #005a3c;
+  --color-secondary-fixed: #dcc9ff;
+  --color-surface-tint: #254cd8;
+  --color-on-tertiary: #c8ffe0;
+  --color-on-secondary: #f8f0ff;
+  --color-on-primary-fixed: #000000;
+  --color-error: #b41340;
+  --color-inverse-on-surface: #9a9d9f;
+  --color-on-secondary-fixed: #430097;
+  --color-on-surface: #2c2f31;
+  --color-primary-dim: #0e3ecc;
+  --color-on-secondary-container: #5b00c7;
+  --color-on-secondary-fixed-variant: #6514d6;
+  --color-surface-container-lowest: #ffffff;
+  --color-tertiary-dim: #005c3d;
+  
+  --font-headline: "Manrope", sans-serif;
+  --font-body: "Plus Jakarta Sans", sans-serif;
+  --font-label: "Plus Jakarta Sans", sans-serif;
+}
+
+body {
+  @apply bg-surface font-body text-on-surface selection:bg-primary-container selection:text-on-primary-container;
+}
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+.tonal-transition {
+  transition: background-color 0.3s ease;
+}
+
+.glass-nav {
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
