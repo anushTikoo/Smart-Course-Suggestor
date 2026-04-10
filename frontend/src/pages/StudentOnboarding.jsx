@@ -78,7 +78,12 @@ const StudentOnboarding = () => {
             if (res.status === 201) {
                 setAccessToken(data.accessToken);
                 login(data.user, data.accessToken);
-                navigate('/student/dashboard');
+                navigate('/student/dashboard', { 
+                    state: { 
+                        targetRole: targetRole.trim(), 
+                        location: preferredLocation.trim() 
+                    } 
+                });
             } else {
                 setSubmitError(data.error || 'Something went wrong. Please try again.');
             }
