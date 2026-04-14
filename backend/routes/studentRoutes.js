@@ -10,26 +10,21 @@ const VALID_EXPERIENCE_LEVELS = ['beginner', 'mid', 'senior'];
 /**
  * POST /api/student/onboard
  *
- * Saves the student onboarding profile and marks them as onboarded.
- * Requires a valid JWT (role must be 'student').
+ * Saves the student onboarding profile.
+ * Requires a valid JWT.
  *
  * Body:
- *  - current_job      {string}   optional — e.g. "Junior Dev at TCS"
- *  - target_role      {string}   required — e.g. "Machine Learning Engineer"
+ *  - current_job      {string}   optional
+ *  - target_role      {string}   required
  *  - experience_level {string}   required — "beginner" | "mid" | "senior"
- *  - location         {string}   optional — e.g. "Pune, India"
- *  - current_skills   {string[]} required — free-form tags e.g. ["Python", "SQL"]
+ *  - location         {string}   optional
+ *  - current_skills   {string[]} required
  *
  * Returns:
  *  - 201 with a fresh access token embedding is_onboarded: true
  */
 router.post('/onboard', authenticateToken, async (req, res) => {
-    const { id: userId, role } = req.user;
-
-    // Only students can access this route
-    if (role !== 'student') {
-        return res.status(403).json({ error: 'Only students can complete student onboarding.' });
-    }
+    const { id: userId } = req.user;
 
     const { current_job, target_role, experience_level, location, current_skills } = req.body;
 
@@ -78,7 +73,7 @@ router.post('/onboard', authenticateToken, async (req, res) => {
         // Re-fetch user credentials (no is_onboarded column anymore).
         // The user is considered onboarded because we just inserted/updated their user_profile row.
         const result = await pool.query(
-            `SELECT id, email, role FROM user_credentials WHERE id = $1`,
+            `SELECT id, email FROM user_credentials WHERE id = $1`,
             [userId]
         );
 
@@ -93,7 +88,6 @@ router.post('/onboard', authenticateToken, async (req, res) => {
             user: {
                 id: updatedUser.id,
                 email: updatedUser.email,
-                role: updatedUser.role,
                 is_onboarded: true,
             },
         });
@@ -159,9 +153,6 @@ router.patch('/target-skills', authenticateToken, async (req, res) => {
  * GET /api/student/pathway
  *
  * Returns the student's saved pathway and its courses, if one exists.
- * Response:
- *   { exists: false }
- *   { exists: true, pathway_id: number, courses: [...] }
  */
 router.get('/pathway', authenticateToken, async (req, res) => {
     const userId = req.user.id;

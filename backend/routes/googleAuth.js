@@ -31,7 +31,6 @@ router.get('/', (req, res) => {
     scope: SCOPES,
     prompt: 'consent',
   });
-
   res.redirect(authUrl);
 });
 
@@ -39,16 +38,10 @@ router.get('/', (req, res) => {
 // Google redirects here after user grants/denies permission
 router.get('/callback', async (req, res) => {
   const { code, error } = req.query;
-
   const BASE_URL = process.env.CLIENT_URL;
 
-  if (error) {
-    return res.redirect(`${BASE_URL}/signup?error=access_denied`);
-  }
-
-  if (!code) {
-    return res.redirect(`${BASE_URL}/signup?error=missing_code`);
-  }
+  if (error) return res.redirect(`${BASE_URL}/signup?error=access_denied`);
+  if (!code) return res.redirect(`${BASE_URL}/signup?error=missing_code`);
 
   try {
     // Exchange the authorization code for tokens
@@ -63,7 +56,7 @@ router.get('/callback', async (req, res) => {
     const payload = ticket.getPayload();
     const { sub: googleId, email } = payload;
 
-    // Check if a user with this google_id or email already exists
+    // Check if user exists
     const existingUser = await pool.query(
       'SELECT * FROM user_credentials WHERE google_id = $1 OR email = $2',
       [googleId, email]
@@ -75,7 +68,7 @@ router.get('/callback', async (req, res) => {
     if (existingUser.rows.length > 0) {
       user = existingUser.rows[0];
 
-      // If they registered via email/password before, link their Google account
+      // Link Google account if they registered via email/password first
       if (!user.google_id) {
         await pool.query(
           'UPDATE user_credentials SET google_id = $1 WHERE id = $2',
@@ -84,19 +77,19 @@ router.get('/callback', async (req, res) => {
         user.google_id = googleId;
       }
     } else {
-      // New user — create a record (no password since it's Google OAuth)
+      // New user — insert without role
       const result = await pool.query(
-        `INSERT INTO user_credentials (email, google_id, role)
-         VALUES ($1, $2, $3)
-         RETURNING id, email, role, google_id`,
-        [email, googleId, 'pending']
+        `INSERT INTO user_credentials (email, google_id)
+         VALUES ($1, $2)
+         RETURNING id, email, google_id`,
+        [email, googleId]
       );
       user = result.rows[0];
       user.is_onboarded = false; // brand new — no user_profile row yet
       isNewUser = true;
     }
 
-    // For existing users, determine onboarding status from user_profile
+    // For existing users, check onboarding status from user_profile
     if (!isNewUser) {
       const profileCheck = await pool.query(
         'SELECT 1 FROM user_profile WHERE user_id = $1 LIMIT 1',
@@ -115,35 +108,10 @@ router.get('/callback', async (req, res) => {
     // Set refresh token in HTTP-only cookie
     setRefreshTokenCookie(res, refreshToken);
 
-    // Determine where to send the user based on their state
-    let redirectUrl;
-
-    if (isNewUser) {
-      // Brand new user — they haven't picked a role yet
-      redirectUrl = `${BASE_URL}/select-role`;
-
-    } else if (!user.is_onboarded) {
-      // Returning user who hasn't completed onboarding yet
-      // Route to their role-specific onboarding page
-      if (user.role === 'student') {
-        redirectUrl = `${BASE_URL}/student/onboarding`;
-      } else if (user.role === 'mentor') {
-        redirectUrl = `${BASE_URL}/mentor/onboarding`;
-      } else {
-        // role is still 'pending' — they closed the tab on /select-role
-        redirectUrl = `${BASE_URL}/select-role`;
-      }
-
-    } else {
-      // Fully onboarded returning user — go straight to their dashboard
-      if (user.role === 'student') {
-        redirectUrl = `${BASE_URL}/student/dashboard`;
-      } else if (user.role === 'mentor') {
-        redirectUrl = `${BASE_URL}/mentor/dashboard`;
-      } else {
-        redirectUrl = `${BASE_URL}/select-role`; // fallback
-      }
-    }
+    // Simple two-state redirect: onboarding or dashboard
+    const redirectUrl = user.is_onboarded
+      ? `${BASE_URL}/student/dashboard`
+      : `${BASE_URL}/student/onboarding`;
 
     res.redirect(`${redirectUrl}?accessToken=${accessToken}`);
   } catch (err) {

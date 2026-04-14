@@ -7,13 +7,11 @@ export default function Signup() {
     const navigate = useNavigate();
     const { login } = useAuth();
     const [isLogin, setIsLogin] = useState(false);
-    const [role, setRole] = useState('student');
     const [showPassword, setShowPassword] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const [toastMessage, setToastMessage] = useState('');
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
     const handleSubmit = async (e) => {
@@ -26,8 +24,8 @@ export default function Signup() {
                 const res = await fetch(`${BACKEND_URL}/api/auth/register`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include', // sends/receives HTTP-only cookie
-                    body: JSON.stringify({ email, password, role }),
+                    credentials: 'include',
+                    body: JSON.stringify({ email, password }),
                 });
 
                 const data = await res.json();
@@ -70,15 +68,6 @@ export default function Signup() {
 
     return (
         <div className="bg-surface text-on-surface min-h-[100dvh] overflow-x-hidden flex items-center justify-center relative px-6 py-4 md:py-8 font-body">
-            {/* Toast Notification */}
-            {toastMessage && (
-                <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-4 fade-in duration-300">
-                    <div className="bg-surface-container-highest flex items-center gap-3 px-6 py-3 rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.1)] border border-surface-variant/50 backdrop-blur-md">
-                        <span className="material-symbols-outlined text-primary text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>info</span>
-                        <span className="text-on-surface font-medium text-sm">{toastMessage}</span>
-                    </div>
-                </div>
-            )}
 
             {/* Playful Geometric Background Shapes */}
             <div className="fixed inset-0 pointer-events-none overflow-hidden">
@@ -96,7 +85,7 @@ export default function Signup() {
                 <div className="absolute w-32 h-64 bg-primary-fixed/20 rotate-[30deg] -bottom-20 right-1/4 rounded-xl opacity-60 -z-10"></div>
                 <div className="absolute w-72 h-16 bg-surface-variant/40 -rotate-12 top-1/2 -left-20 rounded-full opacity-60 -z-10"></div>
 
-                {/* Additional floating shapes from provided code */}
+                {/* Additional floating shapes */}
                 <div className="absolute top-10 left-[10%] w-32 h-32 bg-[#FFD93D] rotate-12 opacity-40 -z-10" style={{ clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)' }}></div>
                 <div className="absolute top-1/2 -right-10 w-40 h-40 bg-[#4D96FF] opacity-30 -z-10" style={{ clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)' }}></div>
                 <div className="absolute bottom-20 left-[5%] w-48 h-48 bg-[#6BCB77] rounded-full opacity-40 -z-10"></div>
@@ -121,33 +110,8 @@ export default function Signup() {
                 {/* Central Card */}
                 <div className="bg-surface-container-lowest rounded-3xl shadow-[0_20px_50px_rgba(44,47,49,0.06)] p-6 md:p-8 border border-surface-variant/20">
                     <form action="#" className="space-y-4" method="POST" onSubmit={handleSubmit}>
-                        {/* Role Selector - Only shown during sign up */}
-                        {!isLogin && (
-                            <div className="space-y-3">
-                                <label className="text-sm font-bold tracking-wide text-on-surface-variant uppercase px-1 font-label">Choose your role</label>
-                                <div className="grid grid-cols-2 gap-3 p-1 bg-surface-container-low rounded-full">
-                                    <button
-                                        type="button"
-                                        onClick={() => setRole('student')}
-                                        className={`cursor-pointer py-2.5 px-4 rounded-full text-sm font-bold transition-all ${role === 'student' ? 'bg-surface-container-lowest text-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'}`}
-                                    >
-                                        Student
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setToastMessage("Mentorship features are currently in development. Stay tuned!");
-                                            setTimeout(() => setToastMessage(''), 3000);
-                                        }}
-                                        className={`cursor-pointer py-2.5 px-4 rounded-full text-sm font-bold transition-all ${role === 'mentor' ? 'bg-surface-container-lowest text-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'}`}
-                                    >
-                                        Mentor
-                                    </button>
-                                </div>
-                            </div>
-                        )}
 
-                        {/* Username Field */}
+                        {/* Email Field */}
                         <div className="space-y-2">
                             <label className="text-sm font-bold tracking-wide text-on-surface-variant uppercase px-1 font-label" htmlFor="username">Email Id</label>
                             <div className="relative">
@@ -215,7 +179,7 @@ export default function Signup() {
                         </div>
                     </div>
 
-                    {/* Social Auth — full-page redirect to backend OAuth, no fetch needed */}
+                    {/* Google OAuth */}
                     <button
                         type="button"
                         onClick={() => window.location.href = `${BACKEND_URL}/api/auth/google`}
@@ -226,7 +190,7 @@ export default function Signup() {
                     </button>
                 </div>
 
-                {/* Secondary Link for toggling Login/Signup */}
+                {/* Toggle Login/Signup */}
                 <p className="mt-5 text-center text-on-surface-variant font-medium">
                     {isLogin ? "Don't have an account? " : "Already have an account? "}
                     <button

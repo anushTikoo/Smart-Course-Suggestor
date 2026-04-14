@@ -14,16 +14,10 @@ const router = express.Router();
 
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
-  let { email, password, role } = req.body;
+  let { email, password } = req.body;
 
   if (!email || !password) {
     return res.status(400).json({ error: 'Email and password are required.' });
-  }
-
-  // Validate role — only student or mentor allowed (not pending, not arbitrary strings)
-  const VALID_ROLES = ['student', 'mentor'];
-  if (role && !VALID_ROLES.includes(role)) {
-    return res.status(400).json({ error: 'Invalid role. Must be student or mentor.' });
   }
 
   email = email.toLowerCase();
@@ -43,12 +37,12 @@ router.post('/register', async (req, res) => {
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    // Insert the new user (google_id left NULL for now)
+    // Insert the new user
     const result = await pool.query(
-      `INSERT INTO user_credentials (email, password, role)
-       VALUES ($1, $2, $3)
-       RETURNING id, email, role`,
-      [email, hashedPassword, role || 'pending']
+      `INSERT INTO user_credentials (email, password)
+       VALUES ($1, $2)
+       RETURNING id, email`,
+      [email, hashedPassword]
     );
 
     const newUser = result.rows[0];
@@ -71,8 +65,7 @@ router.post('/register', async (req, res) => {
       user: {
         id: newUser.id,
         email: newUser.email,
-        role: newUser.role,
-        is_onboarded: false, // brand new — no user_profile row yet
+        is_onboarded: false,
       },
     });
   } catch (error) {
@@ -104,7 +97,7 @@ router.post('/login', async (req, res) => {
 
     const user = result.rows[0];
 
-    // Check if the user has a profile row (i.e. completed onboarding)
+    // Check onboarding status
     const profileCheck = await pool.query(
       'SELECT 1 FROM user_profile WHERE user_id = $1 LIMIT 1',
       [user.id]
@@ -120,7 +113,6 @@ router.post('/login', async (req, res) => {
 
     // Compare password
     const isMatch = await bcrypt.compare(password, user.password);
-
     if (!isMatch) {
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
@@ -135,15 +127,7 @@ router.post('/login', async (req, res) => {
     // Set refresh token in HTTP-only cookie
     setRefreshTokenCookie(res, refreshToken);
 
-    // Determine redirect hint for the frontend
-    let redirect;
-    if (!user.is_onboarded) {
-      redirect = 'onboarding';
-    } else if (user.role === 'student') {
-      redirect = 'student_dashboard';
-    } else if (user.role === 'mentor') {
-      redirect = 'mentor_dashboard';
-    }
+    const redirect = user.is_onboarded ? 'dashboard' : 'onboarding';
 
     res.status(200).json({
       message: 'Login successful.',
@@ -152,7 +136,6 @@ router.post('/login', async (req, res) => {
       user: {
         id: user.id,
         email: user.email,
-        role: user.role,
         is_onboarded: user.is_onboarded,
       },
     });
@@ -186,15 +169,15 @@ router.post('/refresh', async (req, res) => {
       return res.status(403).json({ error: 'Refresh token is invalid or expired.' });
     }
 
-    // Fetch the latest user data
+    // Fetch latest user data
     const userResult = await pool.query(
-      'SELECT id, email, role FROM user_credentials WHERE id = $1',
+      'SELECT id, email FROM user_credentials WHERE id = $1',
       [decoded.id]
     );
 
     const user = userResult.rows[0];
 
-    // Check if the user has a profile row (i.e. completed onboarding)
+    // Check onboarding status
     const profileCheck = await pool.query(
       'SELECT 1 FROM user_profile WHERE user_id = $1 LIMIT 1',
       [user.id]
@@ -209,7 +192,6 @@ router.post('/refresh', async (req, res) => {
       user: {
         id: user.id,
         email: user.email,
-        role: user.role,
         is_onboarded: user.is_onboarded,
       },
     });

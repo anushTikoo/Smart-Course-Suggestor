@@ -5,7 +5,6 @@ import cookieParser from 'cookie-parser';
 import pool from './db.js';
 import authRoutes from './routes/basicAuth.js';
 import googleAuthRoutes from './routes/googleAuth.js';
-import userRoutes from './routes/userRoutes.js';
 import studentRoutes from './routes/studentRoutes.js';
 
 dotenv.config();
@@ -21,18 +20,15 @@ app.use(cookieParser());
 app.use('/api/auth', authRoutes);
 app.use('/api/auth/google', googleAuthRoutes);
 
-// User routes (protected)
-app.use('/api/user', userRoutes);
-
-// Student-specific routes (onboarding, profile)
+// Student routes (onboarding, profile, pathway)
 app.use('/api/student', studentRoutes);
 
-// Basic test route
+// Basic health check
 app.get('/', (req, res) => {
   res.send('Server is running');
 });
 
-// Example route to test DB connection
+// DB connectivity check
 app.get('/api/test-db', async (req, res) => {
   try {
     const defaultResponse = await pool.query('SELECT NOW()');

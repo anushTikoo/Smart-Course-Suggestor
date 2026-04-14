@@ -10,7 +10,7 @@ const REFRESH_TOKEN_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // 7 days in ms
 // NOT from the deleted user_credentials.is_onboarded column).
 export function generateAccessToken(user) {
   return jwt.sign(
-    { id: user.id, email: user.email, role: user.role, is_onboarded: user.is_onboarded },
+    { id: user.id, email: user.email, is_onboarded: user.is_onboarded },
     process.env.JWT_SECRET,
     { expiresIn: ACCESS_TOKEN_EXPIRY }
   );

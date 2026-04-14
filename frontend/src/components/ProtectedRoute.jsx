@@ -5,14 +5,11 @@ import { getRedirectPath } from '../utils/auth';
 /**
  * Wraps protected routes.
  * - Not logged in → redirect to /signup
- * - Logged in but wrong role → redirect to their correct destination
- * - Logged in, correct role, but not onboarded (when requireOnboarded=true) → redirect to onboarding
- * - Correct role → render the page
- *
- * @param {string[]} allowedRoles - array of roles allowed to view this route (e.g. ['student'])
- * @param {boolean}  requireOnboarded - if true, blocks access until the user has completed onboarding
+ * - Logged in but not onboarded (when requireOnboarded=true) → redirect to onboarding
+ * - Logged in and already onboarded (when requireNotOnboarded=true) → redirect to dashboard
+ * - Otherwise → render the page
  */
-export default function ProtectedRoute({ children, allowedRoles, requireOnboarded, requireNotOnboarded }) {
+export default function ProtectedRoute({ children, requireOnboarded, requireNotOnboarded }) {
     const { user, loading } = useAuth();
 
     // Wait for session restore before deciding
@@ -29,17 +26,12 @@ export default function ProtectedRoute({ children, allowedRoles, requireOnboarde
         return <Navigate to="/signup" replace />;
     }
 
-    // Logged in but wrong role for this route → redirect to where they should be
-    if (allowedRoles && !allowedRoles.includes(user.role)) {
-        return <Navigate to={getRedirectPath(user)} replace />;
-    }
-
-    // Correct role but hasn't finished onboarding → send them to their onboarding page
+    // Correct but hasn't finished onboarding → send to onboarding
     if (requireOnboarded && !user.is_onboarded) {
         return <Navigate to={getRedirectPath(user)} replace />;
     }
 
-    // Correct role but already finished onboarding → send them to their dashboard
+    // Already finished onboarding → send to dashboard
     if (requireNotOnboarded && user.is_onboarded) {
         return <Navigate to={getRedirectPath(user)} replace />;
     }

@@ -7,18 +7,14 @@ export const setAccessToken = (token) => {
 };
 
 /**
- * Returns the correct redirect path based on the user's role and onboarding status.
- * @param {{ role: string, is_onboarded: boolean }} user
+ * Returns the correct redirect path based on the user's onboarding status.
+ * @param {{ is_onboarded: boolean }} user
  * @returns {string} path to redirect to
  */
 export const getRedirectPath = (user) => {
     if (!user) return '/signup';
-    if (user.role === 'pending') return '/select-role';
-    if (user.role === 'student' && !user.is_onboarded) return '/student/onboarding';
-    if (user.role === 'mentor' && !user.is_onboarded) return '/mentor/onboarding';
-    if (user.role === 'student' && user.is_onboarded) return '/student/dashboard';
-    if (user.role === 'mentor' && user.is_onboarded) return '/mentor/dashboard';
-    return '/signup';
+    if (!user.is_onboarded) return '/student/onboarding';
+    return '/student/dashboard';
 };
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
