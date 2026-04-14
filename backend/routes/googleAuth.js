@@ -88,11 +88,21 @@ router.get('/callback', async (req, res) => {
       const result = await pool.query(
         `INSERT INTO user_credentials (email, google_id, role)
          VALUES ($1, $2, $3)
-         RETURNING id, email, role, google_id, is_onboarded`,
+         RETURNING id, email, role, google_id`,
         [email, googleId, 'pending']
       );
       user = result.rows[0];
+      user.is_onboarded = false; // brand new — no user_profile row yet
       isNewUser = true;
+    }
+
+    // For existing users, determine onboarding status from user_profile
+    if (!isNewUser) {
+      const profileCheck = await pool.query(
+        'SELECT 1 FROM user_profile WHERE user_id = $1 LIMIT 1',
+        [user.id]
+      );
+      user.is_onboarded = profileCheck.rows.length > 0;
     }
 
     // Issue access + refresh tokens

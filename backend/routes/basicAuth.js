@@ -8,6 +8,7 @@ import {
   saveRefreshToken,
   setRefreshTokenCookie,
 } from '../utils/tokenUtils.js';
+import { verifyOrigin } from '../middleware/verifyOrigin.js';
 
 const router = express.Router();
 
@@ -46,7 +47,7 @@ router.post('/register', async (req, res) => {
     const result = await pool.query(
       `INSERT INTO user_credentials (email, password, role)
        VALUES ($1, $2, $3)
-       RETURNING id, email, role, is_onboarded`,
+       RETURNING id, email, role`,
       [email, hashedPassword, role || 'pending']
     );
 
@@ -71,7 +72,7 @@ router.post('/register', async (req, res) => {
         id: newUser.id,
         email: newUser.email,
         role: newUser.role,
-        is_onboarded: newUser.is_onboarded,
+        is_onboarded: false, // brand new — no user_profile row yet
       },
     });
   } catch (error) {
@@ -91,7 +92,7 @@ router.post('/login', async (req, res) => {
   email = email.toLowerCase();
 
   try {
-    // Look up user by email — include is_onboarded
+    // Look up user by email
     const result = await pool.query(
       'SELECT * FROM user_credentials WHERE email = $1',
       [email]
@@ -102,6 +103,13 @@ router.post('/login', async (req, res) => {
     }
 
     const user = result.rows[0];
+
+    // Check if the user has a profile row (i.e. completed onboarding)
+    const profileCheck = await pool.query(
+      'SELECT 1 FROM user_profile WHERE user_id = $1 LIMIT 1',
+      [user.id]
+    );
+    user.is_onboarded = profileCheck.rows.length > 0;
 
     // If account was created via Google OAuth, it won't have a password
     if (!user.password) {
@@ -180,11 +188,18 @@ router.post('/refresh', async (req, res) => {
 
     // Fetch the latest user data
     const userResult = await pool.query(
-      'SELECT id, email, role, is_onboarded FROM user_credentials WHERE id = $1',
+      'SELECT id, email, role FROM user_credentials WHERE id = $1',
       [decoded.id]
     );
 
     const user = userResult.rows[0];
+
+    // Check if the user has a profile row (i.e. completed onboarding)
+    const profileCheck = await pool.query(
+      'SELECT 1 FROM user_profile WHERE user_id = $1 LIMIT 1',
+      [user.id]
+    );
+    user.is_onboarded = profileCheck.rows.length > 0;
 
     // Issue a new access token
     const newAccessToken = generateAccessToken(user);
@@ -206,7 +221,7 @@ router.post('/refresh', async (req, res) => {
 
 // POST /api/auth/logout
 // Revokes the refresh token from the DB and clears the cookie
-router.post('/logout', async (req, res) => {
+router.post('/logout', verifyOrigin, async (req, res) => {
   const refreshToken = req.cookies?.refreshToken;
 
   if (refreshToken) {

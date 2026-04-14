@@ -7,6 +7,7 @@ export default function SelectRole() {
     const [selectedRole, setSelectedRole] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [toastMessage, setToastMessage] = useState('');
     const navigate = useNavigate();
     const { login } = useAuth();
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -40,6 +41,16 @@ export default function SelectRole() {
 
     return (
         <div className="bg-surface text-on-surface min-h-[100dvh] overflow-x-hidden flex items-center justify-center relative px-6 py-4 md:py-8 font-body">
+            {/* Toast Notification */}
+            {toastMessage && (
+                <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-4 fade-in duration-300">
+                    <div className="bg-surface-container-highest flex items-center gap-3 px-6 py-3 rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.1)] border border-surface-variant/50 backdrop-blur-md">
+                        <span className="material-symbols-outlined text-tertiary text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>info</span>
+                        <span className="text-on-surface font-medium text-sm">{toastMessage}</span>
+                    </div>
+                </div>
+            )}
+
             {/* Playful Geometric Background Shapes */}
             <div className="fixed inset-0 pointer-events-none overflow-hidden">
                 <div className="absolute w-64 h-64 rounded-full bg-primary-container/20 -top-20 -left-20 opacity-60 -z-10"></div>
@@ -95,7 +106,10 @@ export default function SelectRole() {
                         {/* Mentor Card */}
                         <button
                             type="button"
-                            onClick={() => setSelectedRole('mentor')}
+                            onClick={() => {
+                                setToastMessage("Mentorship features are currently in development. Stay tuned!");
+                                setTimeout(() => setToastMessage(''), 3000);
+                            }}
                             className={`group relative flex flex-col items-center p-8 rounded-3xl border-2 transition-all duration-300 cursor-pointer overflow-hidden
                                 ${selectedRole === 'mentor'
                                     ? 'border-tertiary bg-tertiary/10 shadow-[0_10px_30px_rgba(167,139,250,0.15)] scale-[1.02]'

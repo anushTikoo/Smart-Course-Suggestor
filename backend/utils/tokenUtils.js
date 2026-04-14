@@ -5,7 +5,9 @@ const ACCESS_TOKEN_EXPIRY = '15m';    // Short-lived
 const REFRESH_TOKEN_EXPIRY = '7d';    // Long-lived
 const REFRESH_TOKEN_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // 7 days in ms
 
-// Generate a short-lived access token
+// Generate a short-lived access token.
+// user.is_onboarded must be set by the caller (derived from a user_profile lookup,
+// NOT from the deleted user_credentials.is_onboarded column).
 export function generateAccessToken(user) {
   return jwt.sign(
     { id: user.id, email: user.email, role: user.role, is_onboarded: user.is_onboarded },

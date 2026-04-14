@@ -13,6 +13,7 @@ export default function Signup() {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [toastMessage, setToastMessage] = useState('');
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
     const handleSubmit = async (e) => {
@@ -69,6 +70,16 @@ export default function Signup() {
 
     return (
         <div className="bg-surface text-on-surface min-h-[100dvh] overflow-x-hidden flex items-center justify-center relative px-6 py-4 md:py-8 font-body">
+            {/* Toast Notification */}
+            {toastMessage && (
+                <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-4 fade-in duration-300">
+                    <div className="bg-surface-container-highest flex items-center gap-3 px-6 py-3 rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.1)] border border-surface-variant/50 backdrop-blur-md">
+                        <span className="material-symbols-outlined text-primary text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>info</span>
+                        <span className="text-on-surface font-medium text-sm">{toastMessage}</span>
+                    </div>
+                </div>
+            )}
+
             {/* Playful Geometric Background Shapes */}
             <div className="fixed inset-0 pointer-events-none overflow-hidden">
                 {/* Floating Circles */}
@@ -124,7 +135,10 @@ export default function Signup() {
                                     </button>
                                     <button
                                         type="button"
-                                        onClick={() => setRole('mentor')}
+                                        onClick={() => {
+                                            setToastMessage("Mentorship features are currently in development. Stay tuned!");
+                                            setTimeout(() => setToastMessage(''), 3000);
+                                        }}
                                         className={`cursor-pointer py-2.5 px-4 rounded-full text-sm font-bold transition-all ${role === 'mentor' ? 'bg-surface-container-lowest text-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'}`}
                                     >
                                         Mentor

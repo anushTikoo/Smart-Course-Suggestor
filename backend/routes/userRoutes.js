@@ -21,11 +21,18 @@ router.patch('/role', authenticateToken, async (req, res) => {
       `UPDATE user_credentials
        SET role = $1
        WHERE id = $2
-       RETURNING id, email, role, is_onboarded`,
+       RETURNING id, email, role`,
       [role, req.user.id]
     );
 
     const user = result.rows[0];
+
+    // Determine onboarding status from user_profile (column no longer exists in user_credentials)
+    const profileCheck = await pool.query(
+      'SELECT 1 FROM user_profile WHERE user_id = $1 LIMIT 1',
+      [user.id]
+    );
+    user.is_onboarded = profileCheck.rows.length > 0;
 
     // Issue a new access token with the updated role
     const newAccessToken = generateAccessToken(user);

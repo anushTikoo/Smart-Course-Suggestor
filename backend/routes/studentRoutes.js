@@ -21,7 +21,7 @@ const VALID_EXPERIENCE_LEVELS = ['beginner', 'mid', 'senior'];
  *  - current_skills   {string[]} required — free-form tags e.g. ["Python", "SQL"]
  *
  * Returns:
- *  - 201 with a fresh access token (is_onboarded flipped to true)
+ *  - 201 with a fresh access token embedding is_onboarded: true
  */
 router.post('/onboard', authenticateToken, async (req, res) => {
     const { id: userId, role } = req.user;
@@ -75,18 +75,16 @@ router.post('/onboard', authenticateToken, async (req, res) => {
             ]
         );
 
-        // Flip is_onboarded to true in user_credentials
+        // Re-fetch user credentials (no is_onboarded column anymore).
+        // The user is considered onboarded because we just inserted/updated their user_profile row.
         const result = await pool.query(
-            `UPDATE user_credentials
-             SET is_onboarded = true
-             WHERE id = $1
-             RETURNING id, email, role, is_onboarded`,
+            `SELECT id, email, role FROM user_credentials WHERE id = $1`,
             [userId]
         );
 
-        const updatedUser = result.rows[0];
+        const updatedUser = { ...result.rows[0], is_onboarded: true };
 
-        // Issue a new access token with is_onboarded = true
+        // Issue a new access token with is_onboarded = true (derived from user_profile existence)
         const newAccessToken = generateAccessToken(updatedUser);
 
         return res.status(201).json({
@@ -96,7 +94,7 @@ router.post('/onboard', authenticateToken, async (req, res) => {
                 id: updatedUser.id,
                 email: updatedUser.email,
                 role: updatedUser.role,
-                is_onboarded: updatedUser.is_onboarded,
+                is_onboarded: true,
             },
         });
     } catch (error) {
@@ -108,14 +106,14 @@ router.post('/onboard', authenticateToken, async (req, res) => {
 /**
  * GET /api/student/profile
  *
- * Fetches target_role and location for the authenticated student.
+ * Fetches target_role, location, current_skills, experience_level, current_job for the authenticated student.
  */
 router.get('/profile', authenticateToken, async (req, res) => {
     const userId = req.user.id;
 
     try {
         const result = await pool.query(
-            'SELECT target_role, location FROM user_profile WHERE user_id = $1',
+            'SELECT target_role, location, current_skills, experience_level, current_job FROM user_profile WHERE user_id = $1',
             [userId]
         );
 
@@ -154,6 +152,139 @@ router.patch('/target-skills', authenticateToken, async (req, res) => {
     } catch (error) {
         console.error('Error updating target skills:', error);
         return res.status(500).json({ error: 'Internal server error.' });
+    }
+});
+
+/**
+ * GET /api/student/pathway
+ *
+ * Returns the student's saved pathway and its courses, if one exists.
+ * Response:
+ *   { exists: false }
+ *   { exists: true, pathway_id: number, courses: [...] }
+ */
+router.get('/pathway', authenticateToken, async (req, res) => {
+    const userId = req.user.id;
+
+    try {
+        // Check if a pathway row exists for this user
+        const pathwayResult = await pool.query(
+            'SELECT id FROM pathways WHERE user_id = $1 LIMIT 1',
+            [userId]
+        );
+
+        if (pathwayResult.rows.length === 0) {
+            return res.status(200).json({ exists: false });
+        }
+
+        const pathwayId = pathwayResult.rows[0].id;
+
+        // Fetch the ordered courses for this pathway
+        const coursesResult = await pool.query(
+            `SELECT c.id, c.title, c.platform, c.url, c.rating, c.duration,
+                    pc.order_index
+             FROM pathway_courses pc
+             JOIN courses c ON c.id = pc.course_id
+             WHERE pc.pathway_id = $1
+             ORDER BY pc.order_index ASC`,
+            [pathwayId]
+        );
+
+        return res.status(200).json({
+            exists: true,
+            pathway_id: pathwayId,
+            courses: coursesResult.rows,
+        });
+    } catch (error) {
+        console.error('Error fetching pathway:', error);
+        return res.status(500).json({ error: 'Internal server error.' });
+    }
+});
+
+/**
+ * POST /api/student/pathway
+ *
+ * Saves a curated learning pathway for the student.
+ * Idempotent: if a pathway already exists for the user it is replaced.
+ *
+ * Body:
+ *  - courses  {Array}  required — array of course objects from the LLM:
+ *      { title, platform, link, rating, estimated_duration, order_index }
+ *
+ * Returns: { message, pathway_id, courses: [...] }
+ */
+router.post('/pathway', authenticateToken, async (req, res) => {
+    const userId = req.user.id;
+    const { courses } = req.body;
+
+    if (!Array.isArray(courses) || courses.length === 0) {
+        return res.status(400).json({ error: 'courses must be a non-empty array.' });
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // Insert pathway row — replace any existing one for this user
+        const pathwayResult = await client.query(
+            `INSERT INTO pathways (user_id)
+             VALUES ($1)
+             ON CONFLICT (user_id) DO UPDATE SET created_at = NOW()
+             RETURNING id`,
+            [userId]
+        );
+        const pathwayId = pathwayResult.rows[0].id;
+
+        // Delete existing pathway_courses links so we can re-insert cleanly
+        await client.query(
+            'DELETE FROM pathway_courses WHERE pathway_id = $1',
+            [pathwayId]
+        );
+
+        const savedCourses = [];
+
+        for (const course of courses) {
+            const { title, platform, link, rating, estimated_duration, order_index } = course;
+
+            if (!title || !link) continue; // skip malformed entries
+
+            // Upsert course — deduplicated by URL
+            const courseResult = await client.query(
+                `INSERT INTO courses (title, platform, url, rating, duration)
+                 VALUES ($1, $2, $3, $4, $5)
+                 ON CONFLICT (url) DO UPDATE SET
+                     title    = EXCLUDED.title,
+                     platform = EXCLUDED.platform,
+                     rating   = EXCLUDED.rating,
+                     duration = EXCLUDED.duration
+                 RETURNING id, title, platform, url, rating, duration`,
+                [title, platform || null, link, rating || null, estimated_duration || null]
+            );
+            const savedCourse = courseResult.rows[0];
+
+            // Link course to pathway
+            await client.query(
+                `INSERT INTO pathway_courses (pathway_id, course_id, order_index)
+                 VALUES ($1, $2, $3)`,
+                [pathwayId, savedCourse.id, order_index]
+            );
+
+            savedCourses.push({ ...savedCourse, order_index });
+        }
+
+        await client.query('COMMIT');
+
+        return res.status(201).json({
+            message: 'Pathway saved successfully.',
+            pathway_id: pathwayId,
+            courses: savedCourses,
+        });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error saving pathway:', error);
+        return res.status(500).json({ error: 'Internal server error.' });
+    } finally {
+        client.release();
     }
 });
 
