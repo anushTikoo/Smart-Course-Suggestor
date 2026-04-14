@@ -105,7 +105,7 @@ export default function StudentDashboard() {
             setLoadingPhase('courses');
             setProgress(80);
 
-            const coursePrompt = `You are an expert learning curator with access to real-time web search.
+            const coursePrompt = `You are an expert learning curator.
 
 TASK:
 Given a list of target skills and user context, find the BEST online courses and arrange them into an ORDERED learning pathway.
@@ -141,11 +141,11 @@ INSTRUCTIONS:
   * Advanced → focus on depth, system design, real-world application
 * Consider current role to make recommendations more relevant
 
-3. SEARCH STRATEGY
+3. CURATION STRATEGY
 
-* Use web search to find courses from reputable platforms (Coursera, Udemy, edX, YouTube, official docs)
-* Prefer courses that cover MULTIPLE target skills
-* Avoid redundancy
+* Recommend real, existing courses from reputable platforms like Coursera, edX, YouTube, Pluralsight, MIT OpenCourseWare, and official docs.
+* Prefer courses that cover MULTIPLE target skills.
+* ENFORCE PLATFORM DIVERSITY: You MUST include courses from at least 3 DIFFERENT platforms.
 
 4. QUALITY FILTERING (STRICT)
    Only include courses that meet MOST of these:
@@ -181,7 +181,6 @@ INSTRUCTIONS:
 "order_index": 1,
 "title": "Course Title",
 "platform": "Platform Name",
-"link": null,
 "rating": "e.g. 4.6/5 or null",
 "estimated_duration": "e.g. 10 hours / 6 weeks or null"
 }
@@ -190,10 +189,10 @@ INSTRUCTIONS:
 
 9. IMPORTANT CONSTRAINTS
 
-* DO NOT try to guess or hallucinate direct URLs. They almost always result in broken links. ALWAYS set "link": null.
-* If rating or duration is not found, return null
-* Ensure \`order_index\` is strictly increasing (1, 2, 3...)
-* Optimize for relevance, not quantity
+* Ensure courses come from multiple different platforms.
+* If rating or duration is not found, return null.
+* Ensure \`order_index\` is strictly increasing (1, 2, 3...).
+* Optimize for relevance, not quantity.
 
 Now process the input and return the result.`;
 
@@ -371,11 +370,8 @@ Now process the input and return the result.`;
                 {coursesData && coursesData.length > 0 ? (
                     <div className="space-y-4">
                         {coursesData.map((course, idx) => {
-                            // Fallback to a precise Google search query to prevent 404 broken links
-                            const isReliableLink = (course.url ?? course.link ?? '').toLowerCase().includes('http');
-                            const targetHref = isReliableLink
-                                ? (course.url ?? course.link)
-                                : `https://www.google.com/search?q=${encodeURIComponent(`${course.title} ${course.platform || 'course'}`)}`;
+                            // Open a Google search for the course
+                            const targetHref = `https://www.google.com/search?q=${encodeURIComponent(`${course.title} ${course.platform || 'course'}`)}`;
 
                             return (
                                 <div

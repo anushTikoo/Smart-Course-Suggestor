@@ -181,7 +181,7 @@ router.get('/pathway', authenticateToken, async (req, res) => {
 
         // Fetch the ordered courses for this pathway
         const coursesResult = await pool.query(
-            `SELECT c.id, c.title, c.platform, c.url, c.rating, c.duration,
+            `SELECT c.id, c.title, c.platform, c.rating, c.duration,
                     pc.order_index
              FROM pathway_courses pc
              JOIN courses c ON c.id = pc.course_id
@@ -209,7 +209,7 @@ router.get('/pathway', authenticateToken, async (req, res) => {
  *
  * Body:
  *  - courses  {Array}  required — array of course objects from the LLM:
- *      { title, platform, link, rating, estimated_duration, order_index }
+ *      { title, platform, rating, estimated_duration, order_index }
  *
  * Returns: { message, pathway_id, courses: [...] }
  */
@@ -244,21 +244,16 @@ router.post('/pathway', authenticateToken, async (req, res) => {
         const savedCourses = [];
 
         for (const course of courses) {
-            const { title, platform, link, rating, estimated_duration, order_index } = course;
+            const { title, platform, rating, estimated_duration, order_index } = course;
 
-            if (!title || !link) continue; // skip malformed entries
+            if (!title) continue; // skip malformed entries
 
-            // Upsert course — deduplicated by URL
+            // Insert course
             const courseResult = await client.query(
-                `INSERT INTO courses (title, platform, url, rating, duration)
-                 VALUES ($1, $2, $3, $4, $5)
-                 ON CONFLICT (url) DO UPDATE SET
-                     title    = EXCLUDED.title,
-                     platform = EXCLUDED.platform,
-                     rating   = EXCLUDED.rating,
-                     duration = EXCLUDED.duration
-                 RETURNING id, title, platform, url, rating, duration`,
-                [title, platform || null, link, rating || null, estimated_duration || null]
+                `INSERT INTO courses (title, platform, rating, duration)
+                 VALUES ($1, $2, $3, $4)
+                 RETURNING id, title, platform, rating, duration`,
+                [title, platform || null, rating || null, estimated_duration || null]
             );
             const savedCourse = courseResult.rows[0];
 
