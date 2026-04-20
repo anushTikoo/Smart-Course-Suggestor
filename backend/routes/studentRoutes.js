@@ -173,7 +173,7 @@ router.get('/pathway', authenticateToken, async (req, res) => {
         // Fetch the ordered courses for this pathway
         const coursesResult = await pool.query(
             `SELECT c.id, c.title, c.platform, c.rating, c.duration,
-                    pc.order_index
+                    pc.id as pc_id, pc.order_index, pc.is_completed
              FROM pathway_courses pc
              JOIN courses c ON c.id = pc.course_id
              WHERE pc.pathway_id = $1
@@ -271,6 +271,124 @@ router.post('/pathway', authenticateToken, async (req, res) => {
         return res.status(500).json({ error: 'Internal server error.' });
     } finally {
         client.release();
+    }
+});
+
+/**
+ * POST /api/student/pathway_course
+ *
+ * Adds a manual custom course to the user's active pathway.
+ */
+router.post('/pathway_course', authenticateToken, async (req, res) => {
+    const userId = req.user.id;
+    const { title, platform, duration, rating, order_index } = req.body;
+
+    if (!title) return res.status(400).json({ error: 'Title is required.' });
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // Ensure user has a pathway
+        let pathwayResult = await client.query('SELECT id FROM pathways WHERE user_id = $1 LIMIT 1', [userId]);
+        if (pathwayResult.rows.length === 0) {
+            pathwayResult = await client.query('INSERT INTO pathways (user_id) VALUES ($1) RETURNING id', [userId]);
+        }
+        const pathwayId = pathwayResult.rows[0].id;
+
+        // Determine order index if not provided
+        let targetOrderIndex = order_index;
+        if (!targetOrderIndex) {
+            const maxOrderRes = await client.query('SELECT MAX(order_index) as max_idx FROM pathway_courses WHERE pathway_id = $1', [pathwayId]);
+            targetOrderIndex = (maxOrderRes.rows[0].max_idx || 0) + 1;
+        } else {
+            // Shift elements down if explicitly placed
+            await client.query('UPDATE pathway_courses SET order_index = order_index + 1 WHERE pathway_id = $1 AND order_index >= $2', [pathwayId, targetOrderIndex]);
+        }
+
+        // Insert course
+        const courseRes = await client.query(
+            `INSERT INTO courses (title, platform, duration, rating) VALUES ($1, $2, $3, $4) RETURNING id, title, platform, duration, rating`,
+            [title, platform || null, duration || null, rating || null]
+        );
+        const newCourse = courseRes.rows[0];
+
+        // Insert mapping
+        const pcRes = await client.query(
+            `INSERT INTO pathway_courses (pathway_id, course_id, order_index) VALUES ($1, $2, $3) RETURNING id as pc_id, is_completed, order_index`,
+            [pathwayId, newCourse.id, targetOrderIndex]
+        );
+
+        await client.query('COMMIT');
+        return res.status(201).json({ ...newCourse, ...pcRes.rows[0] });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Add course error:', error);
+        return res.status(500).json({ error: 'Internal server error.' });
+    } finally {
+        client.release();
+    }
+});
+
+/**
+ * PATCH /api/student/pathway_course/:id/complete
+ * Toggles a course's completion.
+ */
+router.patch('/pathway_course/:id/complete', authenticateToken, async (req, res) => {
+    const pcId = req.params.id;
+    try {
+        // Toggle is_completed
+        const result = await pool.query(
+            `UPDATE pathway_courses SET is_completed = NOT is_completed WHERE id = $1 RETURNING is_completed`,
+            [pcId]
+        );
+
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Pathway course not found' });
+        
+        return res.json({ is_completed: result.rows[0].is_completed });
+    } catch (error) {
+        console.error('Update complete error:', error);
+        return res.status(500).json({ error: 'Internal server error.' });
+    }
+});
+
+/**
+ * PUT /api/student/pathway/reorder
+ * Bulk updates the order of courses for the current user's pathway
+ * Expects: { orderUpdates: [{ pc_id, new_order_index }] }
+ */
+router.put('/pathway/reorder', authenticateToken, async (req, res) => {
+    const { orderUpdates } = req.body;
+    if (!Array.isArray(orderUpdates)) return res.status(400).json({ error: 'Invalid payload' });
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        for (const update of orderUpdates) {
+            await client.query('UPDATE pathway_courses SET order_index = $1 WHERE id = $2', [update.new_order_index, update.pc_id]);
+        }
+        await client.query('COMMIT');
+        return res.json({ success: true });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Reorder error:', error);
+        return res.status(500).json({ error: 'Internal server error.' });
+    } finally {
+        client.release();
+    }
+});
+
+/**
+ * DELETE /api/student/pathway_course/:id
+ */
+router.delete('/pathway_course/:id', authenticateToken, async (req, res) => {
+    const pcId = req.params.id;
+    try {
+        await pool.query('DELETE FROM pathway_courses WHERE id = $1', [pcId]);
+        return res.json({ success: true });
+    } catch (error) {
+        console.error('Delete course error:', error);
+        return res.status(500).json({ error: 'Internal server error.' });
     }
 });
 
