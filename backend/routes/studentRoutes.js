@@ -249,13 +249,15 @@ router.post('/pathway', authenticateToken, async (req, res) => {
             const savedCourse = courseResult.rows[0];
 
             // Link course to pathway
-            await client.query(
+            const pcResult = await client.query(
                 `INSERT INTO pathway_courses (pathway_id, course_id, order_index)
-                 VALUES ($1, $2, $3)`,
+                 VALUES ($1, $2, $3)
+                 RETURNING id as pc_id`,
                 [pathwayId, savedCourse.id, order_index]
             );
+            const pc_id = pcResult.rows[0].pc_id;
 
-            savedCourses.push({ ...savedCourse, order_index });
+            savedCourses.push({ ...savedCourse, pc_id, order_index, is_completed: false });
         }
 
         await client.query('COMMIT');
