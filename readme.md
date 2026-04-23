@@ -1,8 +1,25 @@
-# Smart Course Suggester (SmartRoute)
+# Smart Course Suggester
+
+**Course Name:** CEP
+**Instructor Name:** Kunal Bandkar
 
 ## Team Members Details
 1. **Tarun Kumar Bajotra** - 241070001
 2. **Anush Tikoo** - 241070006
+
+---
+
+## Introduction (Background of Project)
+The rapid evolution of technology and the digital economy has led to a proliferation of online learning platforms. While educational resources are more accessible than ever, learners often struggle to find clear, structured, and personalized guidance that aligns with their specific career aspirations. Generic course catalogs fail to consider a learner's existing proficiency and individual goals, making self-directed upskilling a daunting and inefficient process. Smart Course Suggester was conceived to address this challenge by leveraging artificial intelligence to create customized, adaptive learning pathways.
+
+---
+
+## Gap Analysis
+Current e-learning platforms often rely on static curricula and broad categorization, lacking the dynamic adaptability required for modern career transitions. The primary gaps identified include:
+- **Lack of Personalization:** Most platforms offer the same course recommendations regardless of a user's prior experience or exact target role.
+- **Static Skill Mapping:** Industry requirements change rapidly, yet course suggestions are often based on outdated job profiles.
+- **Absence of Visual Progress Tracking:** Learners lack an engaging, intuitive way to visualize their journey from their current skill level to their ultimate goal.
+SmartRoute bridges these gaps by dynamically fetching real-time job market skills and using AI to map out an interactive, step-by-step pathway tailored to the individual learner.
 
 ---
 
@@ -49,6 +66,32 @@ In today's fast-paced tech environment, professionals and students often find it
 
 ---
 
+## System Design (Flowchart/Diagram)
+```mermaid
+graph TD
+    A[User Onboarding & Profile Setup] --> B[Target Role & Current Skills Input]
+    B --> C{JSearch API}
+    C -->|Fetch Live Job Listings| D[Extract Required Industry Skills]
+    D --> E{AI Engine: gpt-oss-120b}
+    B --> E
+    E -->|Analyze Skill Gap| F[Generate Personalized Learning Pathway]
+    F --> G[Interactive 2D Dashboard]
+    G --> H[Learner Completes Course]
+    H -->|Update State| G
+    H -->|Save Progress| I[(PostgreSQL Database)]
+```
+
+---
+
+## Key Features
+- **AI-Powered Pathway Generation:** Uses advanced LLMs to build customized, step-by-step learning routes based on the user's specific skill gaps.
+- **Real-Time Job Market Data:** Integrates with the JSearch API to ensure recommended skills and courses align with current industry demands.
+- **Interactive 2D Visualizer:** A "Candy Crush"-style grid dashboard that provides an engaging, visual representation of the learning journey.
+- **Progress Tracking:** Allows users to mark courses as completed and visually track their advancement toward the mastery node.
+- **Dynamic Fallback Mechanism:** Automatically handles broken or hallucinated course links by providing a direct Google Search fallback.
+
+---
+
 ## Implementation Details
 - **Learner Architecture**: The platform was refactored to focus entirely on the student experience for a streamlined flow.
 - **Job Data Integration**: Integrated the JSearch API to dynamically fetch the most current, required skills for a user's target job role, enriching the context provided to the AI.
@@ -63,6 +106,12 @@ In today's fast-paced tech environment, professionals and students often find it
 - Achieved high user engagement through the gamified, interactive 2D pathway visualization.
 - Reduced API timeouts and improved reliability by optimizing AI prompts and leveraging efficient models.
 - Created a robust, scalable PERN-stack architecture capable of handling concurrent learner requests.
+
+### Proof of Work
+- **Functional Application:** A complete PERN stack application developed and tested locally, featuring a working frontend dashboard and a robust Express/PostgreSQL backend.
+- **Live AI Integration:** Successful demonstration of prompt engineering and JSON parsing from the `gpt-oss-120b` model via OpenRouter to generate structured learning paths.
+- **Dynamic Visualization:** The custom 2D grid component successfully renders nodes, handles interactive states, and synchronizes progress with the backend database.
+*(Note: Please attach screenshots or a link to a demo video here to visually demonstrate the working application.)*
 
 ---
 
